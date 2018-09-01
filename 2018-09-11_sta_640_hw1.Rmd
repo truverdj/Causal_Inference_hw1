@@ -1,0 +1,11 @@
+---
+title: "STA 640 - Homework 1"
+author: "Daniel Truver"
+date: "9/11/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
