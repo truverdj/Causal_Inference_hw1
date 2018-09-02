@@ -6,6 +6,127 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(dplyr)
 ```
 
+#### (1) Malaria and Vitamins
+
+```{r}
+placebo = c(8.62, 1.48, 8.93, 9.57, 2.65, 7.30)
+vitamin = c(0.06, 1.72, 2.19, 7.32, 7.53, 7.62)
+full_exp = data.frame(control = c(placebo, rep(NA, 6)), treatment = c(rep(NA,6), vitamin))
+```
+
+##### (a)
+
+We assume the Fisher sharp null: $Y_i(0) = Y_i(1)$ for all individuals $i$.
+
+```{r}
+full_data = data.frame(y0 = c(placebo, vitamin), y1 = c(placebo, vitamin))
+W = 1:12
+combos = combn(W, 6)
+diffs = rep(NA, ncol(combos))
+for (i in seq_along(diffs)){
+  diffs[i] = mean(full_data$y1[combos[,i]]) - mean(full_data$y0[-combos[,i]])
+}
+true_diff = mean(vitamin) - mean(placebo)
+{
+  hist(diffs, xlab = "Sample Mean Difference", 
+         main = "Distribution Under Sharp Null, (true difference in red)")
+  abline(v = true_diff, col = "red", lwd = 5)
+}
+p_value = mean(abs(diffs) >= abs(true_diff))
+```
+
+The true, two-tailed p-value is `r round(p_value, 3)`; this is the probability of seeing an event as or more extreme than the truth if the sharp null is true and the treatment has no effect.  
+
+##### (b)
+
+```{r}
+set.seed(640)
+sampled_diffs = sample(diffs, size = 1000, replace = TRUE)
+{
+  hist(sampled_diffs, xlab = "Sample Mean Difference", 
+         main = "Distribution Sampled Under Sharp Null, (true difference in red)")
+  abline(v = true_diff, col = "red", lwd = 5)
+}
+p_value_sample = mean(abs(sampled_diffs) >= abs(true_diff))
+```
+
+The p-value obtained by sampling from the distribution of the statistic is `r p_value_sample`. 
+
+##### (c)  
+
+```{r}
+t = t.test(placebo, vitamin)
+t.p_value = t$p.value
+```
+
+The p-value obtained by using a t-test is `r t.p_value`.
+
+##### (d)  
+
+(b) approximates (a) in the sense of potential outcomes. From the space of everything that could have happened, we sampled outcomes to see how likely the true outcome was.
+
+(c) approximates (a) in the sense of assignment mechanism. Over the space of possible samplings and re-samplings, how likely was the true outcome.  
+
+#### (2) Matched Pairs Malaria
+
+##### (a) 
+
+```{r}
+paired_exp = full_exp %>%
+  mutate(pair = rep(1:6,2))
+paired_full = full_data %>%
+  mutate(pair = rep(1:6, 2))
+outcomes = list()
+for(i in 1:6){
+  set = paired_full %>% filter(pair == i)
+  outcomes[[i]] = c(set$y1[1] - set$y0[2], set$y1[2] - set$y0[1])
+}
+combos = combn(rep(1:2,6), 6)
+diffs = rep(NA, ncol(combos))
+for (j in 1:ncol(combos)){
+  x = combos[,j]
+  diffs[j] = mean(unlist(lapply(1:6, function(i){outcomes[[i]][x[i]]})))
+}
+true_diff = mean(vitamin - placebo)
+{
+  hist(diffs, xlab = "Sample Mean Difference", 
+         main = "Distribution Under Sharp Null, (true difference in red)")
+  abline(v = true_diff, col = "red", lwd = 5)
+}
+p_value = mean(abs(diffs) >= abs(true_diff))
+```
+
+The true p-value in this paried experiment, the probability of seeing a result as or more extreme under the sharp null, is `r round(p_value,3)`.  
+
+##### (b)  
+
+```{r}
+sampled_diffs = sample(diffs, size = 1000, replace = TRUE)
+{
+  hist(sampled_diffs, xlab = "Sample Mean Difference", 
+         main = "Distribution Sampled Under Sharp Null, (true difference in red)")
+  abline(v = true_diff, col = "red", lwd = 5)
+}
+p_value_sample = mean(abs(sampled_diffs) >= abs(true_diff))
+```
+
+The p-value obtained by sampling from the distribution of the statistic is `r p_value_sample`.
+
+##### (c)
+
+```{r}
+t = t.test(placebo, vitamin, paired = TRUE)
+t.p_value = t$p.value
+```
+
+##### (d)
+
+The result here is very similar to that in (1). 
+
+(b) approximates (a) in the sense of potential outcomes. From the space of everything that could have happened, we sampled outcomes to see how likely the true outcome was. This time, however, the outcomes were between matched units instead of two simple random groups. 
+
+(c) approximates (a) in the sense of assignment mechanism. Over the space of possible samplings and re-samplings, how likely was the true outcome. Here, the sampling was based on randomization dependent on matched background characteristics.
